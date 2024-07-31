@@ -6,7 +6,7 @@ import java.lang.management.MemoryUsage;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ZAllocationSpikeTolerance {
+public class ZGCAnalysis {
 
     private static final String[] CLASS_NAME = {
             "classes.MiniObject",

@@ -1,0 +1,28 @@
+# Z GC
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\BasicCharacteristics\PauseTime\logs\zgc_4g_0.2.log
+
+# G1 GC
+-Xms4g
+-Xmx4g
+-XX:+UseG1GC
+-XX:SoftMaxHeapSize=4g
+-XX:MaxGCPauseMillis=200
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\BasicCharacteristics\PauseTime\logs\g1_4g_0.2.log
+
+
+# Parallel GC
+-Xms4g
+-Xmx4g
+-XX:+UseParallelGC
+-XX:SoftMaxHeapSize=4g
+-XX:MaxGCPauseMillis=200
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\BasicCharacteristics\PauseTime\logs\parallelgc_4g_0.2.log
+

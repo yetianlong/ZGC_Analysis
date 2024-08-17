@@ -44,7 +44,7 @@ public class ZGCAnalysis {
                 }
             }
             // 简单的休眠，以模拟应用程序的其他工作
-            Thread.sleep(10);
+            Thread.sleep(1000);
             i++;
             printMemory(i);
         }

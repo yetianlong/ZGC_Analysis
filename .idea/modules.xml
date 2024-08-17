@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/ZAllocationSpikeTolerance/ZAllocationSpikeTolerance.iml" filepath="$PROJECT_DIR$/ZAllocationSpikeTolerance/ZAllocationSpikeTolerance.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ZGCParameters/ZAllocationSpikeTolerance/ZAllocationSpikeTolerance.iml" filepath="$PROJECT_DIR$/ZGCParameters/ZAllocationSpikeTolerance/ZAllocationSpikeTolerance.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/ZGC_Analysis.iml" filepath="$PROJECT_DIR$/.idea/ZGC_Analysis.iml" />
     </modules>
   </component>

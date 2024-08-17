@@ -1,0 +1,39 @@
+# 2Threads
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:ConcGCThreads=2
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\GeneralParameters\ConcGCThreads\logs\zgc_4g_0.2_2t.log
+
+# 4Threads
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:ConcGCThreads=4
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\GeneralParameters\ConcGCThreads\logs\zgc_4g_0.2_4t.log
+
+# 6Threads
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:ConcGCThreads=6
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\GeneralParameters\ConcGCThreads\logs\zgc_4g_0.2_6t.log
+
+# 8Threads
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:ConcGCThreads=8
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\GeneralParameters\ConcGCThreads\logs\zgc_4g_0.2_8t.log

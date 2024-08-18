@@ -1,0 +1,62 @@
+# 5%
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZFragmentationLimit=5
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZFragmentationLimit\logs\zgc_4g_0.2_5%.log
+
+# 20%
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZFragmentationLimit=20
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZFragmentationLimit\logs\zgc_4g_0.2_20%.log
+
+# 35%
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZFragmentationLimit=35
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZFragmentationLimit\logs\zgc_4g_0.2_35%.log
+
+
+# 50%
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZFragmentationLimit=50
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZFragmentationLimit\logs\zgc_4g_0.2_50%.log
+
+
+# 65%
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZFragmentationLimit=65
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZFragmentationLimit\logs\zgc_4g_0.2_65%.log
+
+
+# 80%
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZFragmentationLimit=80
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZFragmentationLimit\logs\zgc_4g_0.2_80%.log

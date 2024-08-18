@@ -1,0 +1,73 @@
+# 0s
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZCollectionInterval\logs\zgc_4g_0.2_0ms.log
+
+# 0.05s
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0.05
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZCollectionInterval\logs\zgc_4g_0.2_50ms.log
+
+# 0.1s
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0.1
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZCollectionInterval\logs\zgc_4g_0.2_100ms.log
+
+# 0.15s
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0.15
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZCollectionInterval\logs\zgc_4g_0.2_150ms.log
+
+# 0.2s
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0.2
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZCollectionInterval\logs\zgc_4g_0.2_200ms.log
+
+
+# 0.3s
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0.3
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZCollectionInterval\logs\zgc_4g_0.2_300ms.log
+
+# 0.5s
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0.5
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZCollectionInterval\logs\zgc_4g_0.2_500ms.log
+
+
+

@@ -1,0 +1,21 @@
+# 关闭主动回收
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0.2
+-XX:+UnlockDiagnosticVMOptions
+-XX:-ZProactive
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZProactive\logs\zgc_4g_0.2_close.log
+
+
+# 开启主动回收（默认）
+-Xms4g
+-Xmx4g
+-XX:+UseZGC
+-XX:SoftMaxHeapSize=4g
+-XX:ZCollectionInterval=0.2
+-XX:+PrintGCDetails
+-Xloggc:D:\PROJECT\Tencent\ZGC-Analysis\ZGC_Analysis\ZGCParameters\ZProactive\logs\zgc_4g_0.2_open.log
+

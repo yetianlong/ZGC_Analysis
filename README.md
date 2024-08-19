@@ -36,18 +36,17 @@
       * [内存分配](#内存分配)
       * [GC 阶段](#gc-阶段)
       * [暂停时间和并发时间](#暂停时间和并发时间)
-  * [JVM 通用参数调优（未完成）](#jvm-通用参数调优未完成)
+  * [JVM 通用参数调优](#jvm-通用参数调优)
     * [<strong>\-Xms \-Xmx</strong>](#-xms--xmx)
     * [<strong>\-XX:ConcGCThreads</strong>](#-xxconcgcthreads)
     * [<strong>\-XX:ParallelGCThreads</strong>](#-xxparallelgcthreads)
-  * [ZGC 参数调优（未完成）](#zgc-参数调优未完成)
+  * [ZGC 参数调优](#zgc-参数调优)
     * [\-XX:ZAllocationSpikeTolerance](#-xxzallocationspiketolerance)
     * [<strong>\-XX:ZCollectionInterval</strong>](#-xxzcollectioninterval)
-    * [<strong>\-XX:ZAllocationSpikeTolerance</strong>](#-xxzallocationspiketolerance-1)
     * [<strong>\-XX:\+UnlockDiagnosticVMOptions \-XX:\-ZProactive</strong>](#-xxunlockdiagnosticvmoptions--xx-zproactive)
     * [\-XX:ZFragmentationLimit](#-xxzfragmentationlimit)
-    * [\-XX:ZMarkStackSpaceLimit](#-xxzmarkstackspacelimit)
 * [参考](#参考)
+
 # ZGC特性
 
 ## ZGC简介
@@ -128,10 +127,12 @@ ZGC 有几个重要特性：
 ZGC 出现之前， GC 信息保存在对象头的 Mark Word 中。前 62位保存了 GC 信息，最后两位保存了锁标志。
 ZGC 的一大创举是将 GC 信息保存在了染色指针上。染色指针是一种将少量信息直接存储在指针上的技术。在 64 位 JVM  中，对象指针是 64 位，如下图：
 ![QQ_1722518266207.png](https://cdn.nlark.com/yuque/0/2024/png/23042613/1722518269348-cda3731b-571e-4d6e-9027-20650590ab5a.png#averageHue=%23f4f1f0&clientId=u13b492d2-b0da-4&from=paste&height=155&id=u19480c51&originHeight=194&originWidth=969&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=29396&status=done&style=shadow&taskId=ue1cfdffd-cf2c-4fd7-b938-29501801ea0&title=&width=775.2)
+
 其中，[0\~4TB) 对应Java堆，[4TB \~ 8TB) 称为M0地址空间，[8TB \~ 12TB) 称为M1地址空间，[12TB \~ 16TB) 预留未使用，[16TB \~ 20TB) 称为Remapped空间。
 当应用程序创建对象时，首先在堆空间申请一个虚拟地址，但该虚拟地址并不会映射到真正的物理地址。ZGC同时会为该对象在M0、M1和Remapped地址空间分别申请一个虚拟地址，且这三个虚拟地址对应同一个物理地址，但这三个空间在同一时间有且只有一个空间有效。ZGC之所以设置三个虚拟地址空间，是因为它使用“空间换时间”思想，去降低GC停顿时间。“空间换时间”中的空间是虚拟空间，而不是真正的物理空间。
 与上述地址空间划分相对应，ZGC实际仅使用64位地址空间的第0\~41位，而第42\~45位存储元数据，第47\~63位固定为0。
 ![QQ_1722518314229.png](https://cdn.nlark.com/yuque/0/2024/png/23042613/1722518317170-4b1ad44b-2c7a-4591-aebd-9ce416b0a248.png#averageHue=%23f4f3f3&clientId=u13b492d2-b0da-4&from=paste&height=204&id=u461ad94d&originHeight=255&originWidth=871&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=70416&status=done&style=shadow&taskId=u1cf233e3-28da-4bdf-924b-ff475b1f3af&title=&width=696.8)
+
 ZGC将对象存活信息存储在42~45位中，这与传统的垃圾回收并将对象存活信息放在对象头中完全不同。
 
 ### 读屏障
@@ -146,11 +147,13 @@ int i =  obj.FieldB //不是引用类型
 ```
 
 读屏障在解释执行时通过 load 相关的字节码指令加载数据。作用是在对象标记和转移过程中，判断对象的引用地址是否满足条件，并作出相应动作。如下图：
+
 ![QQ_1722518469013.png](https://cdn.nlark.com/yuque/0/2024/png/23042613/1722518495393-63f3a7df-29bf-4534-8755-32a5aeee15a2.png#averageHue=%23fdfdfd&clientId=u13b492d2-b0da-4&from=paste&height=624&id=u54b445b3&originHeight=780&originWidth=954&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=178862&status=done&style=shadow&taskId=u96a73550-18ec-4fe9-860a-037f693e2e4&title=&width=763.2)
 
 ### Concurrent
 
 和 CMS、G1等垃圾回收器一样，ZGC也采用了标记-复制算法，不过，ZGC对标记-复制算法做了很大的改进，ZGC垃圾回收周期和视图切换可以抽象成下图：
+
 ![QQ_1722517631948.png](https://cdn.nlark.com/yuque/0/2024/png/23042613/1722517634421-a64b8154-a92c-4d2f-a3dd-7f42c74b51d5.png#averageHue=%23acc697&clientId=u13b492d2-b0da-4&from=paste&height=291&id=upzva&originHeight=364&originWidth=410&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=38683&status=done&style=shadow&taskId=u90098153-b4c4-48bb-be53-3e0cf400cb7&title=&width=328)
 
 1. **初始化**：ZGC初始化之后，整个内存空间的地址视图被设置为Remapped。程序正常运行，在内存中分配对象，满足一定条件后垃圾回收启动，此时进入标记阶段。
@@ -160,6 +163,7 @@ int i =  obj.FieldB //不是引用类型
 ### Region-based
 
 ZGC 和 G1等垃圾回收器一样，也会将堆划分成很多的小分区，整个堆内存分区如下图：
+
 ![QQ_1722519003070.png](https://cdn.nlark.com/yuque/0/2024/png/23042613/1722519005972-f7870c40-de28-41ad-b6f0-40c80a7a32c5.png#averageHue=%238ea8a7&clientId=u13b492d2-b0da-4&from=paste&height=423&id=MtA0H&originHeight=529&originWidth=886&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=46192&status=done&style=shadow&taskId=ue65e5d10-62e0-429d-bb59-ba814d9109f&title=&width=708.8)
 ZGC的 Region 有小、中、大三种类型: - Small Region（小型 Region）：容量固定为 2M， 存放小于 256K的对象； - Medium Region（中型 Region）：容量固定为 32M，放置大于等于 256K，并小于 4M的对象； - Large Region（大型 Region）: 容量不固定，可以动态变化，但必须为 2M的整数倍，用于放置大于等于 4MB的大对象；
 
@@ -181,7 +185,7 @@ ZGC的 Region 有小、中、大三种类型: - Small Region（小型 Region）�
 
 ZGC垃圾回收全过程包含：初始标记、并发标记、再标记、并发转移准备、初始转移、并发转移 6个阶段，如下图：
 ![QQ_1722519176694.png](https://cdn.nlark.com/yuque/0/2024/png/23042613/1722519180465-b73b7db9-1d63-446e-b997-c51b1b7ae56a.png#averageHue=%23f6f1f1&clientId=u13b492d2-b0da-4&from=paste&height=565&id=u3c839b59&originHeight=706&originWidth=1348&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=179122&status=done&style=shadow&taskId=u9e4957d9-8dec-4dd3-8004-c66f3a59d77&title=&width=1078.4)
-**ZGC只有三个STW阶段：初始标记，再标记，初始转移。**其中，初始标记和初始转移分别都只需要扫描所有GC Roots，其处理时间和GC Roots的数量成正比，一般情况耗时非常短；再标记阶段STW时间很短，最多1ms，超过1ms则再次进入并发标记阶段。即，ZGC几乎所有暂停都只依赖于GC Roots集合大小，停顿时间不会随着堆的大小或者活跃对象的大小而增加。与ZGC对比，G1的转移阶段完全STW的，且停顿时间随存活对象的大小增加而增加。
+**ZGC只有三个STW阶段：初始标记，再标记，初始转移**。其中，初始标记和初始转移分别都只需要扫描所有GC Roots，其处理时间和GC Roots的数量成正比，一般情况耗时非常短；再标记阶段STW时间很短，最多1ms，超过1ms则再次进入并发标记阶段。即，ZGC几乎所有暂停都只依赖于GC Roots集合大小，停顿时间不会随着堆的大小或者活跃对象的大小而增加。与ZGC对比，G1的转移阶段完全STW的，且停顿时间随存活对象的大小增加而增加。
 
 ### 初始标记
 
@@ -198,7 +202,9 @@ ZGC垃圾回收全过程包含：初始标记、并发标记、再标记、并�
 
 **标记阶段的活跃视图也可能是 Marked1，为什么会采用两个视图呢？**
 这里采用两个视图是为了区分前一次标记和这一次标记。如果这次标记的视图是 Marked0，那下一次并发标记就会把视图切换到 Marked1。这样做可以配合 ZGC 按照页回收垃圾的做法。如下图：
+
 ![QQ_1722519913253.png](https://cdn.nlark.com/yuque/0/2024/png/23042613/1722519917829-5c49094f-52b5-419d-af1d-91b394d0b54b.png#averageHue=%23fdfdfc&clientId=u13b492d2-b0da-4&from=paste&height=516&id=u1dd43a72&originHeight=645&originWidth=740&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=312256&status=done&style=shadow&taskId=ubb45dbef-fd0d-4283-b99b-dc3af431849&title=&width=592)
+
 第二次标记的时候，如果还是切换到 Marked0，那么 2 这个对象区分不出是活跃的还是上次标记过的。如果第二次标记切换到 Marked1，就可以区分出了。
 这时 Marked0 这个视图的对象就是上次标记过程被标记过活跃，转移的时候没有被转移，但这次标记没有被标记为活跃的对象。Marked1 视图的对象是这次标记被标记为活跃的对象。Remapped 视图的对象是上次垃圾回收发生转移或者是被 Java 应用线程访问过，本次垃圾回收中被标记为不活跃的对象。
 
@@ -553,7 +559,7 @@ JVM参数设置如下，其中包括ZGC的参数，以及对比实验所使用�
 
 ### 日志详细解释
 
-| **日志行数 ****(+390)** | **日志内容**                                                 | **解释内容**                                                 | **阶段描述**        | **分析**                                                     |
+| **日志行数 (+390)** | **日志内容**                                                 | **解释内容**                                                 | **阶段描述**        | **分析**                                                     |
 | ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------- | ------------------------------------------------------------ |
 | 1                       | [3.173s][info][gc,start    ] GC(10) Garbage Collection (Timer) | 垃圾收集器开始第10次垃圾收集                                 | 启动阶段            | 每次GC收集的开始标志                                         |
 | 2                       | [3.173s][info][gc,task     ] GC(10) Using 3 workers          | 在第10次垃圾收集期间，使用了3个工作线程来并行执行垃圾收集任务。 | 执行阶段            | 垃圾收集器启动了3个工作线程来并行执行垃圾收集任务。垃圾收集器通常会将工作负载分配给多个工作线程，以提高垃圾收集的效率和吞吐量。 |
@@ -666,7 +672,7 @@ JVM参数设置如下，其中包括ZGC的参数，以及对比实验所使用�
 
 ## 调优参数大全
 
-下表整理了JVM基本参数以及ZGC调优参数：
+下表整理了JVM基本参数以及ZGC调优参数
 
 |                        | **参数**                      | **描述**                                 | **用法示例**                      | **详细解释**                                                 |
 | ---------------------- | ----------------------------- | ---------------------------------------- | --------------------------------- | ------------------------------------------------------------ |
@@ -756,9 +762,9 @@ ZGC具有高吞吐的优点，为了体现Z GC的高吞吐，实验选择了两�
 
 **Z GC阶段：**共统计了并发标记、选择重定位集、并发重定位、处理非强引用、暂停标记结束、暂停标记开始、暂停重定位开始和重置重定位集。  其中**选择重定位集和并发重定位阶段耗时较短且波动较小，显示出较高的效率**。**暂停阶段**（包括标记结束、标记开始和重定位开始）**耗时极短，波动性极小，表明暂停对应用的影响微乎其微**。处理非强引用和重置重定位集阶段耗时最短，且几乎没有波动，显示出极高的稳定性和效率  
 ![image.png](https://cdn.nlark.com/yuque/0/2024/png/23042613/1722784233081-3b1a5f99-04d0-44c9-bd50-e5866e5b9e3c.png#averageHue=%238ea58c&clientId=uff89f78a-647d-4&from=paste&height=398&id=uec8f10a7&originHeight=498&originWidth=1425&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=77387&status=done&style=stroke&taskId=udf477654-73e5-4692-ab2a-8a63ae5c062&title=&width=1140)
-**G1 GC阶段：**Young GC 阶段耗时最长，且运行次数最多，**表明当前程序年轻代垃圾回收对应用的影响较大**。Concurrent Marking 和 Root Region Scanning 的运行次数较少，但每次运行的平均时间较长，**显示出并发标记和根区域扫描过程的开销较大**。Remark 和 Cleanup 阶段耗时极短，且标准差小，说明这些阶段的性能稳定，对应用的影响较小。
+**G1 GC阶段 **：Young GC 阶段耗时最长，且运行次数最多，**表明当前程序年轻代垃圾回收对应用的影响较大**。Concurrent Marking 和 Root Region Scanning 的运行次数较少，但每次运行的平均时间较长，**显示出并发标记和根区域扫描过程的开销较大**。Remark 和 Cleanup 阶段耗时极短，且标准差小，说明这些阶段的性能稳定，对应用的影响较小。
 ![image.png](https://cdn.nlark.com/yuque/0/2024/png/23042613/1722784247645-e4d8159d-9e38-4ac0-9946-602efa10eaea.png#averageHue=%2387a187&clientId=uff89f78a-647d-4&from=paste&height=291&id=u6ea6542c&originHeight=364&originWidth=1429&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=61446&status=done&style=stroke&taskId=ud3ffe596-273c-478b-b5ad-42cc6fb863a&title=&width=1143.2)
-**Parallal GC 阶段：**Minor GC（年轻代GC）的垃圾回收在所有GC活动中耗时最长且执行次数最多，**表明当前应用程序年轻代的垃圾回收对应用程序的运行影响最为显著。**Major GC（老年代GC）的执行次数相对较少，但其每次执行的时间较长，**表明老年代GC对应用程序性能的影响较大，尤其是在单次回收过程中**。Concurrent Marking（并发标记）和Root Region Scanning（根区域扫描）这两个阶段的运行次数相对较少，但每次操作的平均时间较长，**表明并发标记和根区域扫描是GC过程中的主要耗时步骤**，对整体性能有一定的开销。Remark（最终标记）和Cleanup（清理）阶段这两个阶段的耗时相对较短，且性能表现稳定，表明它们对应用程序的运行影响较小。
+**Parallal GC 阶段**：**Minor GC（年轻代GC）的垃圾回收在所有GC活动中耗时最长且执行次数最多**，表明当前应用程序年轻代的垃圾回收对应用程序的运行影响最为显著。**Major GC（老年代GC）的执行次数相对较少，但其每次执行的时间较长**，表明老年代GC对应用程序性能的影响较大，尤其是在单次回收过程中**。Concurrent Marking（并发标记）和Root Region Scanning（根区域扫描）这两个阶段的运行次数相对较少，但每次操作的平均时间较长，**表明并发标记和根区域扫描是GC过程中的主要耗时步骤**，对整体性能有一定的开销。Remark（最终标记）和Cleanup（清理）阶段这两个阶段的耗时相对较短，且性能表现稳定，表明它们对应用程序的运行影响较小。
 ![image.png](https://cdn.nlark.com/yuque/0/2024/png/23042613/1722784274006-00f2628e-c99d-41bb-8df2-3ca534cb4681.png#averageHue=%23829f7f&clientId=uff89f78a-647d-4&from=paste&height=382&id=ufb8227d6&originHeight=477&originWidth=1451&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=117823&status=done&style=stroke&taskId=ubcae4c68-6c55-4261-9a78-e8872bc48f2&title=&width=1160.8)
 
 #### 暂停时间和并发时间
@@ -767,57 +773,343 @@ ZGC具有高吞吐的优点，为了体现Z GC的高吞吐，实验选择了两�
 ![image.png](https://cdn.nlark.com/yuque/0/2024/png/23042613/1722784940282-bd588c46-f4f9-4f28-ba04-55a480a3113c.png#averageHue=%23b4c6a9&clientId=uff89f78a-647d-4&from=paste&height=527&id=uc07a11e1&originHeight=659&originWidth=1446&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=84041&status=done&style=stroke&taskId=ua5c58fb9-fb94-4db2-b760-5375e644089&title=&width=1156.8)
 从图中可以看出，G1 GC的较长暂停时间是由于其**回收策略需要更频繁地暂停应用线程来处理复杂的内存回收任务**。Z GC的极短暂停时间归功于其并发回收机制。该数据指标也反映了它们各自的设计目标：**G1 GC更注重吞吐量和可预测的暂停时间，而Z GC则侧重于提供低延迟的垃圾回收。**
 
-## JVM 通用参数调优（未完成）
+## JVM 通用参数调优
 
 ### **-Xms -Xmx**
 
+根据JVM调优建议，建议将 Xms 和 Xmx 的值设置为相等。这样可以避免在运行过程中进行堆内存的动态扩展，减少由于内存扩展带来的性能开销和不确定性。
+所以下面的实验参数中-Xms -Xmx大小设置的相同。实验参数设置如下：
+
+1. 其他参数相同，-Xms -Xmx分别设置为4g,8g,16g，程序产生的对象大小和数量几乎一致
+2. 其他参数相同，-Xms -Xmx设置为8g，程序产生的对象数量和总容量依次递增（程序迭代2w次，3w次，4w次）
+
+**zgc_4g_0.2_2w    vs    zgc_8g_0.2_2w    vs    zgc_16g_0.2_2w**
+
+> 日志分析地址：
+> 
+> 4g：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wNy8zMS96Z2NfNGdfMC4yLnppcC0tMTUtMC0zMg==&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wNy8zMS96Z2NfNGdfMC4yLnppcC0tMTUtMC0zMg==&channel=WEB)
+> 
+> 8g：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC80L2U2NmRiODg3LTcyYTctNGRkYi04Zjg0LTgzOGRkMjZiN2M5OC50eHQtLTktMzMtMjM=&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC80L2U2NmRiODg3LTcyYTctNGRkYi04Zjg0LTgzOGRkMjZiN2M5OC50eHQtLTktMzMtMjM=&channel=WEB)
+> 
+> 16g：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC80L2E5MzE5MGJkLWI3MjItNDViMy04NzgyLTljMDU2NGQ1YjM4MS50eHQtLTktNDYtOA==&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC80L2E5MzE5MGJkLWI3MjItNDViMy04NzgyLTljMDU2NGQ1YjM4MS50eHQtLTktNDYtOA==&channel=WEB)
+
+其中4g（8g16g）代表分配的堆内存大小，0.2代表回收周期0.2s，2w代表程序迭代2w次
+
+| **参数**           | **zgc_4g_0.2_2w** | **zgc_8g_0.2_2w** | **zgc_16g_0.2_2w** |
+| ------------------ | ----------------- | ----------------- | ------------------ |
+| 申请堆空间大小     | 4G                | 8G                | 16G                |
+| 使用堆空间峰值大小 | 2.8G              | 2.82G             | 2.88G              |
+| GC平均暂停时间     | 0.00673 ms        | 0.00725 ms        | 0.00735 ms         |
+| GC最大暂停时间     | 0.0120 ms         | 0.0120 ms         | 0.0140 ms          |
+| GC暂停总时间       | 0.343 ms          | 0.413 ms          | 0.397 ms           |
+
+各阶段的对比：
+
+| **平均时间** | **Concurrent Mark** | **Concurrent Select Relocation Set** | **Concurrent Relocate** | **Concurrent Process Non-Strong References** | **Pause Mark End ** | **Pause Relocate Start ** | **Pause Mark Start ** | **Concurrent Reset Relocation Set** |
+| ------------ | ------------------- | ------------------------------------ | ----------------------- | -------------------------------------------- | ------------------- | ------------------------- | --------------------- | ----------------------------------- |
+| 16g          | 10.8 ms             | 2.96 ms                              | 1.26 ms                 | 0.805 ms                                     | 0.00989 ms          | 0.00628 ms                | 0.00589 ms            | 0.000944 ms                         |
+| 8g           | 9.37 ms             | 2.78 ms                              | 1.29 ms                 | 0.766 ms                                     | 0.00958 ms          | 0.00621 ms                | 0.00595 ms            | 0.000947 ms                         |
+| 4g           | 9.71 ms             | 2.72 ms                              | 1.65 ms                 | 0.844 ms                                     | 0.00918 ms          | 0.00576 ms                | 0.00524 ms            | 0.00100 ms                          |
+
+可以看出，在堆内存足够容纳分配的所有对象的情况下，-Xms -Xmx设置的大小堆GC的影响不大，参数为4G,8G,16G的GC平均暂停时间十分接近，同时也满足ZGC的暂停时间不会受到堆内存大小的影响的设定。
+
+---
+
+**zgc_8g_0.2_2w    vs    zgc_8g_0.2_3w    vs    zgc_8g_0.2_4w**
+
+> 日志分析地址：
+> 
+> 2w：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC80L2U2NmRiODg3LTcyYTctNGRkYi04Zjg0LTgzOGRkMjZiN2M5OC50eHQtLTktMzMtMjM=&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC80L2U2NmRiODg3LTcyYTctNGRkYi04Zjg0LTgzOGRkMjZiN2M5OC50eHQtLTktMzMtMjM=&channel=WEB)
+> 
+> 3w：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy9jNzZiMmM0NC0zNTlhLTQzZmQtYjBhMC1mMTMyMWYwM2RjYWIudHh0LS0xMC0yNC00OA==&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy9jNzZiMmM0NC0zNTlhLTQzZmQtYjBhMC1mMTMyMWYwM2RjYWIudHh0LS0xMC0yNC00OA==&channel=WEB)
+> 
+> 4w：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC80LzIwYzRiNGU3LTcyY2UtNGVlMy1hOWU2LTUwY2ZiYjBiNTdhNi50eHQtLTktMzYtMzc=&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC80LzIwYzRiNGU3LTcyY2UtNGVlMy1hOWU2LTUwY2ZiYjBiNTdhNi50eHQtLTktMzYtMzc=&channel=WEB)
+
+其中，2w代表程序迭代2w次，3w代表程序迭代3w次，4w代表程序迭代4w次。
+
+| **参数**           | **zgc_8g_0.2_2w** | **zgc_8g_0.2_3w** | **zgc_8g_0.2_4w** |
+| ------------------ | ----------------- | ----------------- | ----------------- |
+| 申请堆空间大小     | 8G                | 8G                | 8G                |
+| 使用堆空间峰值大小 | 2.82G             | 4.38G             | 5.89G             |
+| GC平均暂停时间     | 0.00725 ms        | 0.00727 ms        | 0.00716 ms        |
+| GC最大暂停时间     | 0.0120 ms         | 0.0150 ms         | 0.0160 ms         |
+| GC暂停总时间       | 0.413 ms          | 0.654 ms          | 1.55 ms           |
+
+各阶段的对比：
+
+| **平均时间** | **Concurrent Mark** | **Concurrent Select Relocation Set** | **Concurrent Relocate** | **Concurrent Process Non-Strong References** | **Pause Mark End ** | **Pause Relocate Start ** | **Pause Mark Start ** | **Concurrent Reset Relocation Set** |
+| ------------ | ------------------- | ------------------------------------ | ----------------------- | -------------------------------------------- | ------------------- | ------------------------- | --------------------- | ----------------------------------- |
+| 2w           | 9.37 ms             | 2.78 ms                              | 1.29 ms                 | 0.766 ms                                     | 0.00958 ms          | 0.00621 ms                | 0.00595 ms            | 0.000947 ms                         |
+| 3w           | 11.7 ms             | 2.78 ms                              | 1.31 ms                 | 0.746 ms                                     | 0.00987 ms          | 0.00620 ms                | 0.00573 ms            | 0.00100 ms                          |
+| 4w           | 14.4 ms             | 2.59 ms                              | 1.21 ms                 | 0.759 ms                                     | 0.00986 ms          | 0.00592 ms                | 0.00571 ms            | 0.00103 ms                          |
+
+可以看出，在内存大小分配的相同的情况下（8g），随着迭代次数的增加，产生的对象越来越多，占用的空间越来越大，**相应的GC平均时间依然没有太大变化**，但是对象越多，**触发的GC次数也会越来越多，导致GC的总时间会逐渐增加，并发标记的时间也会增加，表明并发标记的时间和对象的数量是成正比的**。对于涉及STW的几个阶段，几组数据都差不多，**表明ZGC的暂停时间不会随着对象的增多而呈现出正比的趋势，而是保持O(1)的时间复杂度**。
+
 ###  **-XX:ConcGCThreads**
+
+通常设置为处理器核心数的1/4到1/2是一个合理的开始点。例如，如果服务器有8个核心，可以设置-XX:ConcGCThreads=4或-XX:ConcGCThreads=6。如果系统上有大量内存或需要处理大量并发请求，可能需要增加线程数。但是，过多的线程可能会导致上下文切换的开销增加，反而降低性能。
+实验设置了线程数分别为2/4/6/8来测试各种指标。
+
+> 日志分析地址：
+> 
+> 2Threads：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy84MzU2MWQwNS1iZmI3LTRlNWYtODhhOC1hMzQ2Y2NlYWY1MTkudHh0LS0xMy01Ny00&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy84MzU2MWQwNS1iZmI3LTRlNWYtODhhOC1hMzQ2Y2NlYWY1MTkudHh0LS0xMy01Ny00&channel=WEB)
+> 
+> 4Threads：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy8wYzlmM2MyNS1lMTcyLTRhYzEtYTZjOS1lNGRiZGM3MmZlZGUudHh0LS0xMy01Ny00Mw==&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy8wYzlmM2MyNS1lMTcyLTRhYzEtYTZjOS1lNGRiZGM3MmZlZGUudHh0LS0xMy01Ny00Mw==&channel=WEB)
+> 
+> 6Threads：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy9iMWI0YmJjYi01MTgxLTRhZDQtYWJjYy1mYWRkNTEwODlkMjUudHh0LS0xMy01OC0xOQ==&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy9iMWI0YmJjYi01MTgxLTRhZDQtYWJjYy1mYWRkNTEwODlkMjUudHh0LS0xMy01OC0xOQ==&channel=WEB)
+> 
+> 8Threads：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy81MjFlNjgyOC1jNDRiLTRiMmUtYmUzZi0xZjhmODYzZTZkYWYudHh0LS0xMy01OC00NQ==&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy81MjFlNjgyOC1jNDRiLTRiMmUtYmUzZi0xZjhmODYzZTZkYWYudHh0LS0xMy01OC00NQ==&channel=WEB)
+
+| **参数**           | **2Threads** | **4Threads** | **6Threads** | **8Threads** |
+| ------------------ | ------------ | ------------ | ------------ | ------------ |
+| 申请堆空间大小     | 4G           | 4G           | 4G           | 4G           |
+| 使用堆空间峰值大小 | 2.89G        | 2.9G         | 2.86G        | 2.96G        |
+| GC平均暂停时间     | 0.00683 ms   | 0.00706 ms   | 0.00745 ms   | 0.00741 ms   |
+| GC最大暂停时间     | 0.0130 ms    | 0.0150 ms    | 0.0130 ms    | 0.0170 ms    |
+| GC暂停总时间       | 0.369 ms     | 0.381 ms     | 0.380 ms     | 0.378 ms     |
+| 并发标记时间       | 436 ms       | 334 ms       | 324 ms       | 308 ms       |
+| 并发总时间         | 523 ms       | 429 ms       | 418 ms       | 402 ms       |
+
+各阶段对比：
+
+| **平均时间** | **Concurrent Mark** | **Concurrent Select Relocation Set** | **Concurrent Relocate** | **Concurrent Process Non-Strong References** | **Pause Mark End ** | **Pause Relocate Start ** | **Pause Mark Start ** | **Concurrent Reset Relocation Set** |
+| ------------ | ------------------- | ------------------------------------ | ----------------------- | -------------------------------------------- | ------------------- | ------------------------- | --------------------- | ----------------------------------- |
+| 2Threads     | 12.1 ms             | 2.77 ms                              | 1.20 ms                 | 0.880 ms                                     | 0.00939 ms          | 0.00567 ms                | 0.00544 ms            | 0.000944 ms                         |
+| 4Threads     | 9.27 ms             | 2.85 ms                              | 1.77 ms                 | 0.698 ms                                     | 0.00956 ms          | 0.00589 ms                | 0.00572 ms            | 0.00111 ms                          |
+| 6Threads     | 9.53 ms             | 3.01 ms                              | 1.88 ms                 | 0.666 ms                                     | 0.00982 ms          | 0.00653 ms                | 0.00600 ms            | 0.00100 ms                          |
+| 8Threads     | 9.06 ms             | 2.84 ms                              | 2.04 ms                 | 0.640 ms                                     | 0.0105 ms           | 0.00594 ms                | 0.00582 ms            | 0.00124 ms                          |
+
+从表一分析可知，**随着设置的并发线程数增加，并发标记的时间会随之减少，当减少到一定程度时回达到并发性能瓶颈，也就不会有明显的变化**，但是从实验结果可以看出，在设置线程数为2和4之间的差距还是很大的，说明合理的设置并发线程数确实会减少并发时间。另外对于暂停时间，可以看出GC暂停的总时间和平均时间随着并发线程数的增加变化不大，**说明并发线程数并不会影响ZGC的暂停时间**。从表二也可以看出并发线程数的增加会使并发标记时间减少。但是4threads和6threads的数据所表达的趋势和结论略有差异，考虑可能是因为程序之间生成的对象的差异导致的微小差异，对实验整体的结果并不会产生过大的影响。
 
 ### **-XX:ParallelGCThreads**
 
-## ZGC 参数调优（未完成）
+该参数表示STW阶段使用线程数，默认是总核数的60%。在当前环境中核心数为12，所以实验分别设置线程数为2，4，6，8，10，12进行探究。
+
+> 日志分析地址：
+> 
+> 2：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8zOTQzNWYyYi01MDNlLTQ3YzEtYmJiOC1hZDg3OThkODNlY2YudHh0LS0xNS0xNC0xNg==&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8zOTQzNWYyYi01MDNlLTQ3YzEtYmJiOC1hZDg3OThkODNlY2YudHh0LS0xNS0xNC0xNg==&channel=API)
+> 
+> 4：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9jOWYzYzBiMy0zNWQ1LTQ4YWQtOTk0MC0xYTY0ZDBlMDljOWYudHh0LS0xNS0xNC0yNA==&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9jOWYzYzBiMy0zNWQ1LTQ4YWQtOTk0MC0xYTY0ZDBlMDljOWYudHh0LS0xNS0xNC0yNA==&channel=API)
+> 
+> 6：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9jMTU5ZmQ5Yy1iNmFlLTQzODAtYmI2Yy1hMWJlMTM2MTc0MzUudHh0LS0xNS0xNC0zOA==&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9jMTU5ZmQ5Yy1iNmFlLTQzODAtYmI2Yy1hMWJlMTM2MTc0MzUudHh0LS0xNS0xNC0zOA==&channel=API)
+> 
+> 8：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9hZGEyZTM4ZC1mYTU3LTRiMzMtYTU3OS1lNjAxODEyOTdlZTAudHh0LS0xNS0xNC00MQ==&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9hZGEyZTM4ZC1mYTU3LTRiMzMtYTU3OS1lNjAxODEyOTdlZTAudHh0LS0xNS0xNC00MQ==&channel=API)
+> 
+> 10：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC80ZDVjNjAxYS1jY2MzLTRlMzMtYmIwYi1jMmJkMTFlZWM1YzMudHh0LS0xNS0xNC00OQ==&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC80ZDVjNjAxYS1jY2MzLTRlMzMtYmIwYi1jMmJkMTFlZWM1YzMudHh0LS0xNS0xNC00OQ==&channel=API)
+> 
+> 12：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9hNGU1YWViOS00ZDRkLTQ1YjgtYjZjMi0yMzUyMWNkN2NjNWMudHh0LS0xNS0xNC01OA==&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9hNGU1YWViOS00ZDRkLTQ1YjgtYjZjMi0yMzUyMWNkN2NjNWMudHh0LS0xNS0xNC01OA==&channel=API)
+
+实验结果如下：
+
+| **参数**           | **2Threads** | **4Threads** | **6Threads** | **8Threads** | **10Threads** | **12Threads** |
+| ------------------ | ------------ | ------------ | ------------ | ------------ | ------------- | ------------- |
+| 申请堆空间大小     | 4G           | 4G           | 4G           | 4G           | 4G            | 4G            |
+| 使用堆空间峰值大小 | 3.34G        | 3.34G        | 3.34G        | 3.33G        | 3.34G         | 3.32G         |
+| GC平均暂停时间     | 0.00692ms    | 0.00704ms    | 0.00703 ms   | 0.00711 ms   | 0.00779 ms    | 0.00767 ms    |
+| GC暂停总时间       | 1.29 ms      | 1.29 ms      | 1.32 ms      | 1.26 ms      | 1.54 ms       | 1.40 ms       |
+| 并发总时间         | 1429 ms      | 1316 ms      | 1543 ms      | 1290 ms      | 1655 ms       | 1499 ms       |
+| GC次数             | 61           | 60           | 62           | 58           | 65            | 60            |
+
+各阶段对比：
+
+| **平均时间** | **Concurrent Mark** | **Concurrent Select Relocation Set** | **Concurrent Relocate** | **Concurrent Process Non-Strong References** | **Pause Mark End ** | **Pause Relocate Start ** | **Pause Mark Start ** | **Concurrent Reset Relocation Set** |
+| ------------ | ------------------- | ------------------------------------ | ----------------------- | -------------------------------------------- | ------------------- | ------------------------- | --------------------- | ----------------------------------- |
+| 2Threads     | 8.64 ms             | 2.55 ms                              | 2.53 ms                 | 0.682 ms                                     | 0.00926 ms          | 0.00595 ms                | 0.00556 ms            | 0.00108 ms                          |
+| 4Threads     | 8.09 ms             | 2.43 ms                              | 2.27 ms                 | 0.695 ms                                     | 0.00967 ms          | 0.00613 ms                | 0.00531 ms            | 0.000934 ms                         |
+| 6Threads     | 9.36 ms             | 2.70 ms                              | 2.48 ms                 | 0.657 ms                                     | 0.00968 ms          | 0.00598 ms                | 0.00540 ms            | 0.00105 ms                          |
+| 8Threads     | 8.08 ms             | 2.53 ms                              | 2.47 ms                 | 0.703 ms                                     | 0.00963 ms          | 0.00612 ms                | 0.00559 ms            | 0.00100 ms                          |
+| 10Threads    | 9.44 ms             | 2.82 ms                              | 2.71 ms                 | 0.667 ms                                     | 0.0107 ms           | 0.00641 ms                | 0.00632 ms            | 0.00102 ms                          |
+| 12Threads    | 9.49 ms             | 2.69 ms                              | 2.25 ms                 | 0.660 ms                                     | 0.0107 ms           | 0.00616 ms                | 0.00610 ms            | 0.000967 ms                         |
+
+从实验数据可知，设置不同的参数时，各种指标变化不大，没有明显的趋势，说明在当前程序环境下，设置不同的ParallelGCThreads对ZGC的垃圾回收影响不大。可以直接使用默认值。
+
+## ZGC 参数调优
 
 ### -XX:ZAllocationSpikeTolerance
 
+在应用程序运行过程中，可能会出现短时间内大量内存分配的情况，这被称为分配峰值或分配突发。此时内存需求急剧增加，可能会导致垃圾收集器需要迅速释放内存。-XX:ZAllocationSpikeTolerance 参数用于设定 ZGC 对这种分配峰值的容忍度，即 ZGC 在遇到内存分配突发时可以承受的分配压力。-XX:ZAllocationSpikeTolerance官方的解释是 ZGC 的分配尖峰容忍度。其实就是数值越大，越早触发回收。可以适当调大该配置，更早触发回收，提升垃圾回收速度，但这会提升应用CPU占用。
+实验中-XX:ZAllocationSpikeTolerance取值分别为1，2，3，5，7
+
+> 日志分析地址：
+> 
+> 1：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy9kNTkxNjJlOC02ZTA0LTQxMjEtOWZmMS0wNzAwZDE5MDM0OWUudHh0LS0xNS0xMC0yMQ==&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy9kNTkxNjJlOC02ZTA0LTQxMjEtOWZmMS0wNzAwZDE5MDM0OWUudHh0LS0xNS0xMC0yMQ==&channel=WEB)
+> 
+> 2：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy80NGNjY2IyMS04MTBjLTRjODItYWM2Ny00MDg3MTJjOGVlYjMudHh0LS0xNS0xMC0yOQ==&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy80NGNjY2IyMS04MTBjLTRjODItYWM2Ny00MDg3MTJjOGVlYjMudHh0LS0xNS0xMC0yOQ==&channel=WEB)
+> 
+> 3：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy8zYzNlZTY0MS1mYTdlLTQxZmYtYjFlZi1iMjlkMGI1YzllYmEudHh0LS0xNS0xMC0zNg==&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy8zYzNlZTY0MS1mYTdlLTQxZmYtYjFlZi1iMjlkMGI1YzllYmEudHh0LS0xNS0xMC0zNg==&channel=WEB)
+> 
+> 5：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy84OGFjNTJiMy1mZGI5LTRhYWYtYjQxMC01MDA0MWQyYTBjOWYudHh0LS0xNS0xMC00Mw==&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy84OGFjNTJiMy1mZGI5LTRhYWYtYjQxMC01MDA0MWQyYTBjOWYudHh0LS0xNS0xMC00Mw==&channel=WEB)
+> 
+> 7：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy8yNWJmZTQ2ZS05ZWE0LTQxZjEtOTNmNi01ZjFkOGEwNTg2NzMudHh0LS0xNS0xMC00OA==&channel=WEB](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xNy8yNWJmZTQ2ZS05ZWE0LTQxZjEtOTNmNi01ZjFkOGEwNTg2NzMudHh0LS0xNS0xMC00OA==&channel=WEB)
+
+实验结果如下：
+
+| **参数**           | Tolerance1 | Tolerance2 | Tolerance3 | Tolerance5 | Tolerance7 |
+| ------------------ | ---------- | ---------- | ---------- | ---------- | ---------- |
+| 申请堆空间大小     | 4G         | 4G         | 4G         | 4G         | 4G         |
+| 使用堆空间峰值大小 | 2.96G      | 2.96G      | 2.98G      | 2.97G      | 2.96G      |
+| GC平均暂停时间     | 0.00705 ms | 0.00684 ms | 0.00698 ms | 0.00701 ms | 0.00693 ms |
+| GC暂停总时间       | 0.719 ms   | 0.684 ms   | 0.733 ms   | 0.736 ms   | 0.748 ms   |
+| 并发总时间         | 714 ms     | 802 ms     | 851 ms     | 793 ms     | 842 ms     |
+| 开始GC时刻         | 0.547 s    | 0.470 s    | 0.393 s    | 0.377 s    | 0.392 s    |
+
+各阶段对比：
+
+| **平均时间** | **Concurrent Mark** | **Concurrent Select Relocation Set** | **Concurrent Relocate** | **Concurrent Process Non-Strong References** | **Pause Mark End ** | **Pause Relocate Start ** | **Pause Mark Start ** | **Concurrent Reset Relocation Set** |
+| ------------ | ------------------- | ------------------------------------ | ----------------------- | -------------------------------------------- | ------------------- | ------------------------- | --------------------- | ----------------------------------- |
+| Tolerance1   | 8.34 ms             | 2.47 ms                              | 1.09 ms                 | 0.742 ms                                     | 0.00979 ms          | 0.00597 ms                | 0.00538 ms            | 0.000912 ms                         |
+| Tolerance2   | 10.0 ms             | 2.41 ms                              | 1.13 ms                 | 0.751 ms                                     | 0.00958 ms          | 0.00568 ms                | 0.00530 ms            | 0.000970 ms                         |
+| Tolerance3   | 9.84 ms             | 2.54 ms                              | 1.31 ms                 | 0.785 ms                                     | 0.00989 ms          | 0.00563 ms                | 0.00543 ms            | 0.00100 ms                          |
+| Tolerance5   | 9.21 ms             | 2.46 ms                              | 1.01 ms                 | 0.763 ms                                     | 0.00983 ms          | 0.00591 ms                | 0.00529 ms            | 0.000971 ms                         |
+| Tolerance7   | 9.52 ms             | 2.45 ms                              | 1.16 ms                 | 0.762 ms                                     | 0.00967 ms          | 0.00567 ms                | 0.00544 ms            | 0.000972 ms                         |
+
+通过分析上述表格可知，当设置-XX:ZAllocationSpikeTolerance分别为1，2，3，5，7时，GC暂停时间，平均暂停时间，并发标记时间，并发总时间等指标变化不大，没有明显上升或者下降的趋势，可知**GC暂停时间和并发时间与-XX:ZAllocationSpikeTolerance没有关系**。分析GC开始时间可知，随着-XX:ZAllocationSpikeTolerance的值增大，GC开始的时间有明显的变小的趋势，当取值为357时变化不明显，说明已经达到了瓶颈，因此得出结论，**-XX:ZAllocationSpikeTolerance设置的值越大，触发的GC时间越早，对内存分配突发时可以承受的分配压力越大**。
+
 ### **-XX:ZCollectionInterval**
 
-### **-XX:ZAllocationSpikeTolerance**
+ -XX:ZCollectionInterval：ZGC发生的最小时间间隔，单位秒。对于一些对实时性要求较高的应用场景，可能需要将间隔设置得相对短一些，以确保内存能够及时回收，减少因内存不足导致的延迟。在实验中设置的参数分别为0.05，0.10，0.15，0.20，0.30，0.50，分别对应50ms，100ms，150ms，200ms，300ms，500ms。
+
+> 日志分析地址：
+> 
+> 50ms：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC84MTJlZGE0ZC0wZjdlLTQ1ZGYtOTRmMy0yYzBjODY3YmI0ZGUudHh0LS0yLTIyLTA=&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC84MTJlZGE0ZC0wZjdlLTQ1ZGYtOTRmMy0yYzBjODY3YmI0ZGUudHh0LS0yLTIyLTA=&channel=API)
+> 
+> 100ms：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8yOTQwNDU1MS1lOTFmLTQ4YjYtYTk2YS03MGQ3YTljMzFiYTcudHh0LS0yLTIyLTc=&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8yOTQwNDU1MS1lOTFmLTQ4YjYtYTk2YS03MGQ3YTljMzFiYTcudHh0LS0yLTIyLTc=&channel=API)
+> 
+> 150ms：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8yZmU2NWYxYi1mZTUzLTQ4NjItYTdmNS1kZGU1OGZiMWQ5NzkudHh0LS0yLTIyLTE0&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8yZmU2NWYxYi1mZTUzLTQ4NjItYTdmNS1kZGU1OGZiMWQ5NzkudHh0LS0yLTIyLTE0&channel=API)
+> 
+> 200ms：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8yOWVkOGFlOC03NWE1LTQ1ZmQtYmFhZC00ODlkNWY1ZGI2YjkudHh0LS0yLTIyLTIx&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8yOWVkOGFlOC03NWE1LTQ1ZmQtYmFhZC00ODlkNWY1ZGI2YjkudHh0LS0yLTIyLTIx&channel=API)
+> 
+> 300ms：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9lYjg5ZGU2MS1hZDMwLTRiNmYtODBjNC0wODMzYmZlNWU4ZTIudHh0LS0yLTI0LTUw&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9lYjg5ZGU2MS1hZDMwLTRiNmYtODBjNC0wODMzYmZlNWU4ZTIudHh0LS0yLTI0LTUw&channel=API)
+> 
+> 500ms：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8xMzQ4NDgzYi02YjE0LTQwNzEtYjc3MC1mZjg1ZmNlYTg1ODEudHh0LS0yLTI4LTQz&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8xMzQ4NDgzYi02YjE0LTQwNzEtYjc3MC1mZjg1ZmNlYTg1ODEudHh0LS0yLTI4LTQz&channel=API)
+
+实验结果如下：
+
+| **参数**           | **50ms**   | **100ms**  | **150ms**  | **200ms**  | **300ms**  | **500ms**  |
+| ------------------ | ---------- | ---------- | ---------- | ---------- | ---------- | ---------- |
+| 申请堆空间大小     | 4G         | 4G         | 4G         | 4G         | 4G         | 4G         |
+| 使用堆空间峰值大小 | 2.97G      | 2.97G      | 2.96G      | 2.97G      | 2.96G      | 2.98G      |
+| GC平均暂停时间     | 0.00707 ms | 0.00731 ms | 0.00720 ms | 0.00702 ms | 0.00710 ms | 0.00725 ms |
+| GC暂停总时间       | 0.700 ms   | 0.768 ms   | 0.756 ms   | 0.688 ms   | 0.682 ms   | 0.739 ms   |
+| 并发总时间         | 759 ms     | 741 ms     | 759 ms     | 802 ms     | 736ms      | 924 ms     |
+| 吞吐量             | 99.993%    | 99.993%    | 99.993%    | 99.993%    | 99.993%    | 99.993%    |
+
+各阶段对比：
+
+| **平均时间** | **Concurrent Mark** | **Concurrent Select Relocation Set** | **Concurrent Relocate** | **Concurrent Process Non-Strong References** | **Pause Mark End ** | **Pause Relocate Start ** | **Pause Mark Start ** | **Concurrent Reset Relocation Set** |
+| ------------ | ------------------- | ------------------------------------ | ----------------------- | -------------------------------------------- | ------------------- | ------------------------- | --------------------- | ----------------------------------- |
+| 50ms         | 9.45 ms             | 2.49 ms                              | 0.898 ms                | 0.723 ms                                     | 0.00964 ms          | 0.00603 ms                | 0.00555 ms            | 0.000939 ms                         |
+| 100ms        | 8.45 ms             | 2.47 ms                              | 1.04 ms                 | 0.760 ms                                     | 0.0101 ms           | 0.00623 ms                | 0.00566 ms            | 0.00100 ms                          |
+| 150ms        | 8.70 ms             | 2.55 ms                              | 0.963 ms                | 0.767 ms                                     | 0.0100 ms           | 0.00609 ms                | 0.00551 ms            | 0.000971 ms                         |
+| 200ms        | 9.87 ms             | 2.56 ms                              | 1.37 ms                 | 0.758 ms                                     | 0.00973 ms          | 0.00582 ms                | 0.00547 ms            | 0.00100 ms                          |
+| 300ms        | 9.30 ms             | 2.49 ms                              | 1.12 ms                 | 0.797 ms                                     | 0.0100 ms           | 0.00603 ms                | 0.00525 ms            | 0.00100 ms                          |
+| 500ms        | 11.2 ms             | 2.56 ms                              | 1.36 ms                 | 0.783 ms                                     | 0.0102 ms           | 0.00588 ms                | 0.00562 ms            | 0.00100 ms                          |
+
+从表中数据分析可知，在并发时间和暂停时间等指标方面，设置不同的 -XX:ZCollectionInterval参数对暂停时间等方面影响不大。分析该参数应该和程序的运行特性有关。另外在吞吐量方面，各参数的吞吐量都达到了99.993%，表明ZGC的吞吐量方面做的优化已经很好了。
 
 ### **-XX:+UnlockDiagnosticVMOptions -XX:-ZProactive**
 
+该参数表示是否启用主动回收，默认开启，这里的配置表示关闭。ZProactive 允许垃圾收集器在检测到即将到来的内存压力时，提前主动进行垃圾回收，而不是等到内存使用接近极限时才触发回收。禁用此功能垃圾回收只会在必要时进行，而不提前。
+如果启用 -XX:+ZProactive，ZGC 会更加积极地管理内存，提前进行回收，可能有助于在高负载下保持更稳定的内存使用，减少内存使用高峰。
+如果禁用 -XX:-ZProactive，ZGC 会采取更保守的策略，只在需要时进行回收，这可能会导致在内存压力下出现延迟或抖动。
+
+> 日志分析地址：
+> 
+> 关闭主动回收：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC81YTM2MmI0Zi00Y2NjLTQ3MmMtYWNmNy0xODY4YzMzY2E0NTQudHh0LS0xMy0yMC00Mg==&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC81YTM2MmI0Zi00Y2NjLTQ3MmMtYWNmNy0xODY4YzMzY2E0NTQudHh0LS0xMy0yMC00Mg==&channel=API)
+> 
+> 开启主动回收：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9hOGU1MDQ1Zi0yZDdlLTQxZGEtOWEwYi0wOTRhNjA2YTgxYzgudHh0LS0xMy0yMC01Nw==&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9hOGU1MDQ1Zi0yZDdlLTQxZGEtOWEwYi0wOTRhNjA2YTgxYzgudHh0LS0xMy0yMC01Nw==&channel=API)
+
+实验结果如下：
+
+| **参数**           | **close**  | **open**   |
+| ------------------ | ---------- | ---------- |
+| 申请堆空间大小     | 4G         | 4G         |
+| 使用堆空间峰值大小 | 2.97G      | 2.97G      |
+| GC平均暂停时间     | 0.00735 ms | 0.00720 ms |
+| GC暂停总时间       | 1.04 ms    | 1.06 ms    |
+| 并发总时间         | 1126 ms    | 1168 ms    |
+| 吞吐量             | 99.993%    | 99.993%    |
+| GC开始时间         | 0.543 s    | 0.412 s    |
+
+各阶段对比：
+
+| **平均时间** | **Concurrent Mark** | **Concurrent Select Relocation Set** | **Concurrent Relocate** | **Concurrent Process Non-Strong References** | **Pause Mark End ** | **Pause Relocate Start ** | **Pause Mark Start ** | **Concurrent Reset Relocation Set** |
+| ------------ | ------------------- | ------------------------------------ | ----------------------- | -------------------------------------------- | ------------------- | ------------------------- | --------------------- | ----------------------------------- |
+| close        | 9.11 ms             | 2.60 ms                              | 2.45 ms                 | 0.675 ms                                     | 0.00974 ms          | 0.00698 ms                | 0.00532 ms            | 0.000979 ms                         |
+| open         | 9.19 ms             | 2.53 ms                              | 2.14 ms                 | 0.780 ms                                     | 0.00973 ms          | 0.00645 ms                | 0.00543 ms            | 0.000980 m                          |
+
+从表中分析可知，在打开主动回收和关闭主动回收时，两个日志的并发时间，暂停时间都十分接近，可见该参数对GC暂停时间以及并发时间没有影响。从开始GC时间来看，关闭主动回收的GC开始时间（0.543s）要明显晚于开启主动回收的GC开始时间（0.412s），**表明启用 -XX:+ZProactive，ZGC 会提前进行回收**，可能有助于在高负载下保持更稳定的内存使用，减少内存使用高峰。
+
 ### -XX:ZFragmentationLimit
 
-###  -XX:ZMarkStackSpaceLimit  
+该参数用于设置内存碎片的阈值（以百分比为单位）。当内存碎片达到这个阈值时，ZGC 会尝试进行压缩。默认-XX:ZFragmentationLimit=25 表示当内存碎片化程度超过这个百分比时，ZGC 会强制进行一次垃圾回收，以减少碎片化。 为了能够将内存分配的更多（接近4G），增加了2500次迭代
+实验中设置该参数的取值分别为5，20，35，50，65，80
+
+> 日志分析地址：
+> 
+> 5%：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC83NzQyZDJiMC0yZTU0LTQ0MWEtODRjNi1iYTQ5ZDIyZmEzOTIudHh0LS0xNC00NC00Ng==&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC83NzQyZDJiMC0yZTU0LTQ0MWEtODRjNi1iYTQ5ZDIyZmEzOTIudHh0LS0xNC00NC00Ng==&channel=API)
+> 
+> 20%：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8yODdhYTAzZC1hNmU0LTQ3NDktOGI0ZC1mOGUyODEyOGQ3OGEudHh0LS0xNC00NC01Ng==&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8yODdhYTAzZC1hNmU0LTQ3NDktOGI0ZC1mOGUyODEyOGQ3OGEudHh0LS0xNC00NC01Ng==&channel=API)
+> 
+> 35%：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8yMGE2MTE4OS1jNGRiLTQyZTAtYjE4NC1lYzcxN2EyMjM1MWQudHh0LS0xNC00NS01&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC8yMGE2MTE4OS1jNGRiLTQyZTAtYjE4NC1lYzcxN2EyMjM1MWQudHh0LS0xNC00NS01&channel=API)
+> 
+> 50%：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC81NGY0YjMyYy1jMTQxLTRhMDgtYTE2OC0xODViZjQxODFmMzQudHh0LS0xNC00NS0xMw==&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC81NGY0YjMyYy1jMTQxLTRhMDgtYTE2OC0xODViZjQxODFmMzQudHh0LS0xNC00NS0xMw==&channel=API)
+> 
+> 65%：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9mZjY0ZGVjMy04MTEwLTQ4ODYtODcyNi1jMDNkZGM5YzVkY2QudHh0LS0xNC00NS0yNw==&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9mZjY0ZGVjMy04MTEwLTQ4ODYtODcyNi1jMDNkZGM5YzVkY2QudHh0LS0xNC00NS0yNw==&channel=API)
+> 
+> 80%：[https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9mZWNlNzRjOC1lYzA2LTQ5YjMtOGU0Ni0xMWMwNTg0YTQ0ZDcudHh0LS0xNC00NS0zNQ==&channel=API](https://gceasy.io/my-gc-report.jsp?p=YXJjaGl2ZWQvMjAyNC8wOC8xOC9mZWNlNzRjOC1lYzA2LTQ5YjMtOGU0Ni0xMWMwNTg0YTQ0ZDcudHh0LS0xNC00NS0zNQ==&channel=API)
+
+实验结果如下：
+
+| **参数**           | **5%**    | **20%**   | **35%**    | **50%**    | **65%**    | **80%**    |
+| ------------------ | --------- | --------- | ---------- | ---------- | ---------- | ---------- |
+| 申请堆空间大小     | 4G        | 4G        | 4G         | 4G         | 4G         | 4G         |
+| 使用堆空间峰值大小 | 3.32G     | 3.34G     | 3.34G      | 3.34G      | 3.36G      | 3.35G      |
+| GC平均暂停时间     | 0.00688ms | 0.00666ms | 0.00708 ms | 0.00688 ms | 0.00719 ms | 0.00685 ms |
+| GC暂停总时间       | 1.12 ms   | 1.02 ms   | 1.17 ms    | 1.11 ms    | 1.14 ms    | 1.07 ms    |
+| 并发总时间         | 1230 ms   | 1200 ms   | 1286 ms    | 1198 ms    | 1172 ms    | 1098 ms    |
+| 开始GC时刻         | 0.387 s   | 0.387 s   | 0.387 s    | 0.389 s    | 0.386 s    | 0.388 s    |
+| GC次数             | 54        | 50        | 54         | 53         | 52         | 51         |
+
+各阶段对比：
+
+| **平均时间** | **Concurrent Mark** | **Concurrent Select Relocation Set** | **Concurrent Relocate** | **Concurrent Process Non-Strong References** | **Pause Mark End ** | **Pause Relocate Start ** | **Pause Mark Start ** | **Concurrent Reset Relocation Set** |
+| ------------ | ------------------- | ------------------------------------ | ----------------------- | -------------------------------------------- | ------------------- | ------------------------- | --------------------- | ----------------------------------- |
+| 5%           | 8.26 ms             | 3.11 ms                              | 2.48 ms                 | 0.681 ms                                     | 0.00969 ms          | 0.00585 ms                | 0.00513 ms            | 0.000981 ms                         |
+| 20%          | 8.89 ms             | 2.68 ms                              | 2.39 ms                 | 0.682 ms                                     | 0.00941 ms          | 0.00557 ms                | 0.00500 ms            | 0.00104 ms                          |
+| 35%          | 9.09 ms             | 2.43 ms                              | 2.10 ms                 | 0.674 ms                                     | 0.00978 ms          | 0.00605 ms                | 0.00540 ms            | 0.000982 ms                         |
+| 50%          | 9.02 ms             | 2.40 ms                              | 1.10 ms                 | 0.647 ms                                     | 0.00965 ms          | 0.00570 ms                | 0.00530 ms            | 0.000852 ms                         |
+| 65%          | 8.81 ms             | 2.48 ms                              | 1.31 ms                 | 0.704 ms                                     | 0.0100 ms           | 0.00591 ms                | 0.00562 ms            | 0.000906 ms                         |
+| 80%          | 8.96 ms             | 2.36 ms                              | 0.673 ms                | 0.159 ms                                     | 0.00963 ms          | 0.00577 ms                | 0.00513 ms            | 0.000462 ms                         |
+
+通过分析实验数据可知，当设置内存碎片阈值分别为5%，20%，35%，50%，65%，80%时，各项指标的变化均不明显，理论上回收次数应该随着内存碎片阈值的增大而减少，实验数据有极不明显的下降趋势，**考虑到这可能是ZGC的压缩做的优化，将所有活动对象移动到内存的一端，从而消除内存碎片的过程**。这有助于提高内存分配的效率。所以实验上的结果不明显。 
 
 # 参考
 
 jdk17官方源码：[https://github.com/openjdk/jdk17/tree/master/src/hotspot/cpu/aarch64/gc/z](https://github.com/openjdk/jdk17/tree/master/src/hotspot/cpu/aarch64/gc/z)
 
-OpenJDK官方文档：[https://openjdk.org/groups/build/doc/building.html
+OpenJDK官方文档：[https://openjdk.org/groups/build/doc/building.html](https://openjdk.org/groups/build/doc/building.html)
 
-[](https://openjdk.org/groups/build/doc/building.html)
-美团新一代垃圾回收器ZGC的探索与实践：[https://tech.meituan.com/2020/08/06/new-zgc-practice-in-meituan.html
+美团新一代垃圾回收器ZGC的探索与实践：[https://tech.meituan.com/2020/08/06/new-zgc-practice-in-meituan.html](https://tech.meituan.com/2020/08/06/new-zgc-practice-in-meituan.html)
 
-[](https://tech.meituan.com/2020/08/06/new-zgc-practice-in-meituan.html)
 Z GC 官方PDF：[https://cr.openjdk.java.net/~pliden/slides/ZGC-OracleDevLive-2022.pdf](https://link.zhihu.com/?target=https%3A//cr.openjdk.java.net/~pliden/slides/ZGC-OracleDevLive-2022.pdf)
 
 jdk17zgc特性介绍：[https://malloc.se/blog/zgc-jdk17](https://malloc.se/blog/zgc-jdk17)
 
-zgc调优：[https://roll.sohu.com/a/750990972_121124363
+zgc调优：[https://roll.sohu.com/a/750990972_121124363](https://roll.sohu.com/a/750990972_121124363)
 
-[](https://roll.sohu.com/a/750990972_121124363)
-图解ZGC：[https://mp.weixin.qq.com/s?
-
-[__biz=MzAwNTQ4MTQ4NQ==&mid=2453586896&idx=1&sn=cf74a9f6c4e2686093224574e952f352&chksm=8cd196b2bba61fa45db6317600d200b94b885365bb1b1bbea478929138e0862cd5a7cccc00e4&scene=27](https://mp.weixin.qq.com/s?__biz=MzAwNTQ4MTQ4NQ==&mid=2453586896&idx=1&sn=cf74a9f6c4e2686093224574e952f352&chksm=8cd196b2bba61fa45db6317600d200b94b885365bb1b1bbea478929138e0862cd5a7cccc00e4&scene=27)
+图解ZGC：[https://mp.weixin.qq.com/s?__biz=MzAwNTQ4MTQ4NQ==&mid=2453586896&idx=1&sn=cf74a9f6c4e2686093224574e952f352&chksm=8cd196b2bba61fa45db6317600d200b94b885365bb1b1bbea478929138e0862cd5a7cccc00e4&scene=27]
+(https://mp.weixin.qq.com/s?__biz=MzAwNTQ4MTQ4NQ==&mid=2453586896&idx=1&sn=cf74a9f6c4e2686093224574e952f352&chksm=8cd196b2bba61fa45db6317600d200b94b885365bb1b1bbea478929138e0862cd5a7cccc00e4&scene=27)
 
 zgc详细解析：[https://zhuanlan.zhihu.com/p/585254683](https://zhuanlan.zhihu.com/p/585254683)
 
-zgc详细解析及GC调优：[https://www.163.com/dy/article/J662AQIQ0511D3QS.html
+zgc详细解析及GC调优：[https://www.163.com/dy/article/J662AQIQ0511D3QS.html](https://www.163.com/dy/article/J662AQIQ0511D3QS.html)
 
-[](https://www.163.com/dy/article/J662AQIQ0511D3QS.html)
 GC日志分析工具：[https://gceasy.io/](https://gceasy.io/)
 
 Oracle JVM 规范：[https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-2.html#jvms-2.5.2](https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-2.html#jvms-2.5.2)
+
+腾讯云：[https://cloud.tencent.com.cn/developer/article/2296563](https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-2.html#jvms-2.5.2)
 
 
 
